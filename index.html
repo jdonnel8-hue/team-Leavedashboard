@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO Team Status Dashboard</title>
+    <style>
+        :root {
+            --utk-orange: #FF8200;
+            --smokey-grey: #4b4b4b;
+            --light-grey: #f0f0f0;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--light-grey);
+            margin: 0;
+            padding: 40px;
+            color: var(--smokey-grey);
+            overflow: hidden;
+            height: 100vh;
+            box-sizing: border-box;
+        }.loading-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--light-grey);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            gap: 20px;
+        }.loading-screen.hidden { display: none; }.loading-screen h1 {
+            font-size: 3rem;
+            color: var(--smokey-grey);
+            margin: 0;
+        }.loading-screen h1 span { color: var(--utk-orange); }.loading-screen p {
+            font-size: 1.4rem;
+            color: #888;
+            margin: 0;
+            max-width: 500px;
+            text-align: center;
+        }.loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 6px solid var(--light-grey);
+            border-top: 6px solid var(--utk-orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }.error-message {
+            background: #fff3f3;
+            border: 2px solid #e74c3c;
+            border-radius: 12px;
+            padding: 30px 50px;
+            text-align: center;
+            max-width: 700px;
+        }.error-message h2 {
+            color: #e74c3c;
+            margin-top: 0;
+            font-size: 2rem;
+        }.error-message p {
+            color: var(--smokey-grey);
+            font-size: 1.3rem;
+            line-height: 1.6;
+        }.error-message code {
+            background: var(--light-grey);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            word-break: break-all;
+        }.page {
+            display: none;
+            animation: fadeIn 0.8s ease-in-out;
+            height: 100%;
+            flex-direction: column;
+        }.active-page { display: flex; }.header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-shrink: 0;
+            border-bottom: 4px solid var(--utk-orange);
+            padding-bottom: 20px;
+        }.title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--smokey-grey);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }.title span { color: var(--utk-orange); }.date-subtitle {
+            font-size: 2.2rem;
+            color: var(--smokey-grey);
+            font-weight: 600;
+        }.lists-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            flex-grow: 1;
+            min-height: 0;
+        }.list-box {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            overflow-y: auto;
+            border-top: 10px solid var(--smokey-grey);
+        }.office-list { border-color: var(--smokey-grey); }.wfh-list { border-color: var(--utk-orange); }.elsewhere-list { border-color: #8C8279; }.out-list { border-color: #e5e5e5; }.list-box h3 {
+            font-size: 2rem;
+            margin-top: 0;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--light-grey);
+            color: var(--smokey-grey);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }.count-badge {
+            background-color: var(--light-grey);
+            color: var(--smokey-grey);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 1.4rem;
+            margin-left: auto;
+            font-weight: bold;
+        }.employee-name {
+            font-size: 1.8rem;
+            font-weight: 500;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--light-grey);
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }.employee-name:last-child { border-bottom: none; }.employee-end-time {
+            font-size: 1.2rem;
+            color: #999;
+            margin-left: auto;
+            font-weight: 400;
+        }.schedule-container {
+            flex-grow: 1;
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            padding: 30px;
+            overflow-y: auto;
+            border-top: 10px solid var(--utk-orange);
+        }.schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.6rem;
+        }.schedule-table th {
+            background-color: var(--light-grey);
+            color: var(--smokey-grey);
+            padding: 20px;
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            border-bottom: 4px solid var(--utk-orange);
+        }.schedule-table th:first-child { text-align: left; }.schedule-table th.current-day {
+            background-color: var(--utk-orange);
+            color: var(--white);
+        }.schedule-table td {
+            padding: 18px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--light-grey);
+            font-weight: 500;
+        }.schedule-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: var(--smokey-grey);
+        }.schedule-table tr:hover td { background-color: #fcfcfc; }.status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.4rem;
+            width: 120px;
+        }.status.office { background-color: var(--smokey-grey); color: var(--white); }.status.wfh { background-color: var(--utk-orange); color: var(--white); }.status.elsewhere { background-color: #8C8279; color: var(--white); }.status.out { background-color: var(--light-grey); color: var(--smokey-grey); border: 2px dashed #ccc; }.status-end-time {
+            display: block;
+            font-size: 1rem;
+            font-weight: 400;
+            margin-top: 4px;
+            opacity: 0.85;
+        }.notes-col {
+            font-size: 1.2rem;
+            color: #888;
+            font-style: italic;
+            text-align: left !important;
+            max-width: 180px;
+        }.weekend-message {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            font-size: 3rem;
+            color: #999;
+            text-align: center;
+        }.hidden { display: none !important; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.99); }
+            to { opacity: 1; transform: scale(1); }
+        }.progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 8px;
+            background-color: var(--utk-orange);
+            width: 100%;
+        }.progress-bar.animating {
+            animation: progress linear infinite;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }.last-updated {
+            position: fixed;
+            bottom: 16px;
+            right: 40px;
+            font-size: 1rem;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADING SCREEN -->
+    <div class="loading-screen" id="loading-screen">
+        <h1>Team Status <span>Dashboard</span></h1>
+        <div class="loading-spinner" id="spinner"></div>
+        <p id="loading-message">Loading schedule...</p>
+    </div>
+
+    <!-- PAGE 1: TODAY -->
+    <div id="page-today" class="page">
+        <div class="header">
+            <h1 class="title">Team Status: <span>Today</span></h1>
+            <div class="date-subtitle" id="today-date"></div>
+        </div>
+        <div class="lists-container" id="today-lists">
+            <div class="list-box office-list">
+                <h3>🏢 In Office <span class="count-badge" id="count-office">0</span></h3>
+                <div id="list-office"></div>
+            </div>
+            <div class="list-box wfh-list">
+                <h3>🏠 WFH <span class="count-badge" id="count-wfh">0</span></h3>
+                <div id="list-wfh"></div>
+            </div>
+            <div class="list-box elsewhere-list">
+                <h3>✈️ Elsewhere <span class="count-badge" id="count-elsewhere">0</span></h3>
+                <div id="list-elsewhere"></div>
+            </div>
+            <div class="list-box out-list">
+                <h3>🌴 Out / PTO <span class="count-badge" id="count-out">0</span></h3>
+                <div id="list-out"></div>
+            </div>
+        </div>
+        <div class="weekend-message hidden" id="weekend-message">
+            🎉 It's the weekend! Enjoy your time off.<br>See the weekly view for the schedule.
+        </div>
+    </div>
+
+    <!-- PAGE 2: THIS WEEK -->
+    <div id="page-week" class="page">
+        <div class="header">
+            <h1 class="title">Team Status: <span>This Week</span></h1>
+            <div class="date-subtitle">Weekly Overview</div>
+        </div>
+        <div class="schedule-container">
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th id="th-monday">Monday</th>
+                        <th id="th-tuesday">Tuesday</th>
+                        <th id="th-wednesday">Wednesday</th>
+                        <th id="th-thursday">Thursday</th>
+                        <th id="th-friday">Friday</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="progress-bar hidden" id="progress-bar"></div>
+    <div class="last-updated hidden" id="last-updated"></div>
+
+    <script>
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  CONFIGURATION                                                  ║
+        // ║                                                                 ║
+        // ║  data.json lives in the same GitHub Pages repo as this file.    ║
+        // ║  Same origin = no CORS, no auth, no issues.                     ║
+        // ║                                                                 ║
+        // ║  Power Automate updates data.json via the GitHub API.           ║
+        // ║  This dashboard reads it every 5 minutes.                       ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        const CONFIG = {
+            // Relative path to the JSON data file in this same repo
+            DATA_SOURCE: "data.json",
+
+            // How often to re-fetch data (milliseconds)
+            // 5 minutes = 300000
+            REFRESH_INTERVAL: 5 * 60 * 1000,
+
+            // How long each page shows before rotating (milliseconds)
+            // 10 seconds = 10000
+            PAGE_ROTATE_INTERVAL: 10000,
+        };
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  DATA FETCHER                                                   ║
+        // ║                                                                 ║
+        // ║  Fetches data.json and normalizes all keys to lowercase.        ║
+        // ║  This handles any casing differences from Power BI columns.     ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        async function fetchData() {
+            // Cache-busting parameter ensures we always get fresh data
+            var url = CONFIG.DATA_SOURCE + "?_t=" + Date.now();
+
+            var response = await fetch(url, { cache: "no-store" });
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status + ": " + response.statusText);
+            }
+
+            var data = await response.json();
+
+            // Handle case where data might be wrapped in an object
+            // Power BI DAX query results sometimes come as { "results": [...] }
+            if (!Array.isArray(data)) {
+                // Try common wrapper properties
+                if (data.results && Array.isArray(data.results)) {
+                    data = data.results;
+                } else if (data.rows && Array.isArray(data.rows)) {
+                    data = data.rows;
+                } else if (data.firstTableRows && Array.isArray(data.firstTableRows)) {
+                    data = data.firstTableRows;
+                } else {
+                    // Try to find the first array property
+                    for (var key in data) {
+                        if (Array.isArray(data[key])) {
+                            data = data[key];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!Array.isArray(data)) {
+                throw new Error("data.json does not contain an array of employees");
+            }
+
+            // Normalize all keys to lowercase and values to strings
+            return data.map(function(row) {
+                var normalized = {};
+                for (var key in row) {
+                    if (row.hasOwnProperty(key)) {
+                        var lowerKey = key.toLowerCase().replace(/\s+/g, "_");
+                        var val = row[key];
+                        normalized[lowerKey] = (val === null || val === undefined) ? "" : String(val);
+                    }
+                }
+                return normalized;
+            });
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  HELPERS                                                        ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        var employees = [];
+        var showToday = true;
+        var rotationInterval = null;
+
+        var days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+
+        function getTodayKey() {
+            var jsDay = new Date().getDay();
+            if (jsDay >= 1 && jsDay <= 5) return days[jsDay - 1];
+            return null;
+        }
+
+        function normalizeStatus(raw) {
+            var s = (raw || "").trim().toLowerCase();
+            if (s === "office" || s === "in office") return "office";
+            if (s === "wfh" || s === "work from home") return "wfh";
+            if (s === "elsewhere" || s === "travel") return "elsewhere";
+            return "out";
+        }
+
+        function statusLabel(key) {
+            var labels = { office: "Office", wfh: "WFH", elsewhere: "Elsewhere", out: "Out / PTO" };
+            return labels[key] || "Out / PTO";
+        }
+
+        // Safely escape HTML to prevent XSS
+        function escapeHtml(str) {
+            var div = document.createElement("div");
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  RENDER: TODAY VIEW                                             ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        function renderToday() {
+            var dateEl = document.getElementById("today-date");
+            var options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+            dateEl.innerText = new Date().toLocaleDateString("en-US", options);
+
+            var todayKey = getTodayKey();
+            var listsContainer = document.getElementById("today-lists");
+            var weekendMsg = document.getElementById("weekend-message");
+
+            if (!todayKey) {
+                listsContainer.classList.add("hidden");
+                weekendMsg.classList.remove("hidden");
+                return;
+            }
+
+            listsContainer.classList.remove("hidden");
+            weekendMsg.classList.add("hidden");
+
+            var buckets = { office: [], wfh: [], elsewhere: [], out: [] };
+
+            employees.forEach(function(emp) {
+                var status = normalizeStatus(emp[todayKey]);
+                var endTime = emp[todayKey + "_end"] || "";
+                buckets[status].push({ name: emp.name, endTime: endTime });
+            });
+
+            // Sort each bucket alphabetically
+            Object.keys(buckets).forEach(function(key) {
+                buckets[key].sort(function(a, b) { return a.name.localeCompare(b.name); });
+            });
+
+            ["office", "wfh", "elsewhere", "out"].forEach(function(key) {
+                var listEl = document.getElementById("list-" + key);
+                var countEl = document.getElementById("count-" + key);
+                countEl.textContent = buckets[key].length;
+                listEl.innerHTML = buckets[key].map(function(emp) {
+                    return '<div class="employee-name">' +
+                        escapeHtml(emp.name) +
+                        (emp.endTime
+                            ? '<span class="employee-end-time">until ' + escapeHtml(emp.endTime) + '</span>'
+                            : '') +
+                    '</div>';
+                }).join("");
+            });
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  RENDER: WEEKLY VIEW                                            ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        function renderWeek() {
+            var todayKey = getTodayKey();
+
+            days.forEach(function(day) {
+                var th = document.getElementById("th-" + day);
+                if (day === todayKey) th.classList.add("current-day");
+                else th.classList.remove("current-day");
+            });
+
+            var tbody = document.getElementById("schedule-body");
+            var sorted = employees.slice().sort(function(a, b) {
+                return a.name.localeCompare(b.name);
+            });
+
+            tbody.innerHTML = sorted.map(function(emp) {
+                var dayCells = days.map(function(day) {
+                    var status = normalizeStatus(emp[day]);
+                    var endTime = emp[day + "_end"] || "";
+                    return '<td>' +
+                        '<span class="status ' + status + '">' +
+                            statusLabel(status) +
+                            (endTime
+                                ? '<span class="status-end-time">until ' + escapeHtml(endTime) + '</span>'
+                                : '') +
+                        '</span>' +
+                    '</td>';
+                }).join("");
+
+                var notes = emp.notes || "";
+                return '<tr>' +
+                    '<td>' + escapeHtml(emp.name) + '</td>' +
+                    dayCells +
+                    '<td class="notes-col">' + escapeHtml(notes) + '</td>' +
+                '</tr>';
+            }).join("");
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  PAGE ROTATION                                                  ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        function startRotation() {
+            if (rotationInterval) return;
+
+            var progressBar = document.getElementById("progress-bar");
+            progressBar.classList.remove("hidden");
+            progressBar.style.animationDuration = CONFIG.PAGE_ROTATE_INTERVAL + "ms";
+            progressBar.classList.add("animating");
+
+            rotationInterval = setInterval(function() {
+                var pageToday = document.getElementById("page-today");
+                var pageWeek = document.getElementById("page-week");
+
+                // Reset progress bar animation
+                progressBar.classList.remove("animating");
+                progressBar.offsetHeight; // force reflow
+                progressBar.classList.add("animating");
+
+                if (showToday) {
+                    pageToday.classList.remove("active-page");
+                    pageWeek.classList.add("active-page");
+                } else {
+                    pageWeek.classList.remove("active-page");
+                    pageToday.classList.add("active-page");
+                }
+                showToday = !showToday;
+            }, CONFIG.PAGE_ROTATE_INTERVAL);
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  STATUS DISPLAY                                                 ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        function showLastUpdated() {
+            var el = document.getElementById("last-updated");
+            var now = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+            el.textContent = "Last updated: " + now;
+            el.classList.remove("hidden");
+        }
+
+        function showError(message) {
+            var loader = document.getElementById("loading-screen");
+            loader.innerHTML =
+                '<h1>Team Status <span>Dashboard</span></h1>' +
+                '<div class="error-message">' +
+                    '<h2>⚠️ Could Not Load Data</h2>' +
+                    '<p>' + message + '</p>' +
+                '</div>';
+            loader.classList.remove("hidden");
+        }
+
+
+        // ╔══════════════════════════════════════════════════════════════════╗
+        // ║  MAIN STARTUP                                                   ║
+        // ╚══════════════════════════════════════════════════════════════════╝
+
+        async function loadDashboard() {
+            try {
+                var data = await fetchData();
+
+                if (data.length === 0) {
+                    showError(
+                        'Loaded <code>data.json</code> but it contained no employees.<br><br>' +
+                        'Waiting for Power Automate to populate the data.<br>' +
+                        'This page will automatically retry every 5 minutes.'
+                    );
+                    return;
+                }
+
+                employees = data;
+
+                document.getElementById("loading-screen").classList.add("hidden");
+                document.getElementById("page-today").classList.add("active-page");
+
+                renderToday();
+                renderWeek();
+                showLastUpdated();
+                startRotation();
+
+            } catch (err) {
+                console.error("Failed to load data:", err);
+                showError(
+                    'Could not load <code>data.json</code>.<br><br>' +
+                    '<strong>Possible causes:</strong><br>' +
+                    '• The file does not exist yet in the repo<br>' +
+                    '• Power Automate has not run yet<br>' +
+                    '• The JSON format is invalid<br><br>' +
+                    '<small>Error: ' + escapeHtml(err.message) + '</small>'
+                );
+            }
+        }
+
+        // ── Auto-Refresh ──
+        setInterval(async function() {
+            try {
+                var data = await fetchData();
+                if (data.length > 0) {
+                    employees = data;
+                    renderToday();
+                    renderWeek();
+                    showLastUpdated();
+
+                    // If we were showing an error, switch to the dashboard
+                    var loader = document.getElementById("loading-screen");
+                    if (!loader.classList.contains("hidden")) {
+                        loader.classList.add("hidden");
+                        document.getElementById("page-today").classList.add("active-page");
+                        startRotation();
+                    }
+                }
+            } catch (err) {
+                console.warn("Auto-refresh failed, will retry:", err.message);
+            }
+        }, CONFIG.REFRESH_INTERVAL);
+
+        // ── Start ──
+        loadDashboard();
+    </script>
+</body>
+</html>
